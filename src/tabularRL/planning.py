@@ -243,7 +243,7 @@ def solve_vapor(mu, sigma, P_hat, rho, L, S, A, *, eps: float = 1e-9):
         ])
 
     constraints = [
-        u <= cp.entr(Lambda + eps)     # ← **note: no leading minus!**
+        u <= cp.entr(Lambda + eps)
     ]
 
     # --------------------------- #

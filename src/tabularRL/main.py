@@ -5,6 +5,11 @@ from gymnasium import Env
 from tabularRL.learning_algorithms.psrl import psrl
 from tabularRL.learning_algorithms.vapor import vapor
 
+
+import gymnasium as gym
+import mo_gymnasium as mo_gym
+import numpy as np
+
 def run_psrl_experiment(
     env:Env,
     seed=None,
@@ -12,11 +17,18 @@ def run_psrl_experiment(
     num_episodes: int = 100, # number of episodes per iteration
     # steps_per_episode: int = 20, # length of each episode
 ):
-    num_states = 4 * env.unwrapped.width * env.unwrapped.height
-    num_actions = 3 # env.action_space.n
-    
-    env.unwrapped.max_steps = 10
-    steps_per_episode = env.unwrapped.max_steps
+    # num_states = 4 * env.unwrapped.width * env.unwrapped.height
+    # num_actions = 3 # env.action_space.n
+
+    grid_size = env.observation_space.high - env.observation_space.low
+    width, height = grid_size[0], grid_size[1]
+    num_states = width * height
+    num_actions = 4
+
+    # env.unwrapped.max_steps = 10
+    env._max_episode_steps = 20
+    # steps_per_episode = env.unwrapped.max_steps
+    steps_per_episode = env._max_episode_steps
     print("max episode steps", steps_per_episode)
 
     if seed is not None:
@@ -57,10 +69,10 @@ def run_psrl_experiment(
 
 seed = 42
 # env = gym.make("MiniGrid-SimpleCrossingS9N1-v0", render_mode="human")
+# env = gym.make("MiniGrid-Empty-5x5-v0", render_mode="human")
 
-env = gym.make("MiniGrid-Empty-5x5-v0", render_mode="human")
+env = mo_gym.make("deep-sea-treasure-v0", render_mode="human")
+# env._max_episode_steps = 10
+# print("max steps", env._max_episode_steps)
 
-
-
-# initial_observation = env.reset(seed = seed)
 run_psrl_experiment(env, seed=42, n_iters=1, num_episodes=30000)
