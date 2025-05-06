@@ -5,14 +5,7 @@ from tqdm import trange
 from tabularRL.sampling import sample_dirichlet_mat, sample_normal_gamma_mat
 from tabularRL.planning import dp_value_iteration
 from tabularRL.viz import *
-
-
-def flatten_grid_state(env):
-    x, y = env.unwrapped.agent_pos       # 2D position
-    d     = env.unwrapped.agent_dir      # orientation
-    W     = env.unwrapped.width
-    return (y * W + x) * 4 + d # flatten (x, y), add orientation offset
-
+from tabularRL.env import flatten_grid_state
 
 # ------------------------------------------------------------------
 #  Main PSRL routine
@@ -174,6 +167,6 @@ def psrl(
 
         print(f"Episode {episode+1:>3}/{num_episodes} | Episode reward: {episode_rewards:.4f}")
 
-    plt.ioff()
-    plt.show()  # Keeps final plot open
+    # plt.ioff()
+    # plt.show()  # Keeps final plot open
     return rewards, states, actions, values_log, policies_log, total_visits
