@@ -71,7 +71,7 @@ seed = 42
 # env = gym.make("MiniGrid-SimpleCrossingS9N1-v0", render_mode="human")
 # env = gym.make("MiniGrid-Empty-5x5-v0", render_mode="human")
 
-env = mo_gym.make("deep-sea-treasure-v0", render_mode="human")
+env = mo_gym.make("deep-sea-treasure-mirrored-v0", render_mode="human")
 # env._max_episode_steps = 10
 # print("max steps", env._max_episode_steps)
 

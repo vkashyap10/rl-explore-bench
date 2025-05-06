@@ -192,6 +192,11 @@ def _build_flow_matrix(P_hat, rho, L, S, A):
 # ------------------------------------------------------------------
 #  Solve VAPOR convex program
 # ------------------------------------------------------------------
+def quad_over_lin(X, y):
+  t = cp.Variable()
+  expr = cp.vstack([2*X, y[None,:]-t])
+  constr = cp.SOC(y-t, expr, axis=0)
+  return t, constr
 
 # ------------------------------------------------------------------
 #  Solve VAPOR convex program  (DCP‑compliant version)
@@ -237,14 +242,30 @@ def solve_vapor(mu, sigma, P_hat, rho, L, S, A, *, eps: float = 1e-9):
     # which is DCP‑valid because  λ ↦ quad_over_lin(t, 2λ)  is convex
     # and affine in its second argument.
     # build element‑wise RHS  u_i = t_i² / (2 λ_i)
-    u = cp.hstack([
-            cp.quad_over_lin(t[i], 2 * (Lambda[i] + eps))
-            for i in range(n_var)
-        ])
+    # u = cp.hstack([
+    #         cp.quad_over_lin(t[i], 2 * (Lambda[i] + eps))
+    #         for i in range(n_var)
+    #     ])
 
-    constraints = [
-        u <= cp.entr(Lambda + eps)
-    ]
+    # SOC block (one cone, axis = 0)
+    # Build z = [ 2·τ ; (Λ + ε) – τ ]  ∈ ℝ^{2n}
+    # and y   = (Λ + ε) + τ            ∈ ℝ^{n}
+    # auxiliary variable that will be t_i² / (2 λ_i)
+    u = cp.Variable(n_var)
+
+    z  = cp.vstack([2 * t, (Lambda + eps) - u])
+    y  = (Lambda + eps) + u
+    soc_constr = cp.SOC(y, z, axis=0)
+
+    # constraints = [
+    #     u <= cp.entr(Lambda + eps)
+    # ]
+    # entropy side
+    entr_constr = u <= cp.entr(Lambda + eps) # removing the negative sign worked. why?
+
+    constraints = [soc_constr, entr_constr]
+
+
 
     # --------------------------- #
     #   Flow conservation         #
@@ -261,8 +282,8 @@ def solve_vapor(mu, sigma, P_hat, rho, L, S, A, *, eps: float = 1e-9):
     prob.solve(
         solver=cp.ECOS,            # exponential‑cone capable
         abstol=1e-8,
-        reltol=1e-8,
-        feastol=1e-8,
+        # reltol=1e-8,
+        # feastol=1e-8,
         verbose=True
     )
 
@@ -271,3 +292,54 @@ def solve_vapor(mu, sigma, P_hat, rho, L, S, A, *, eps: float = 1e-9):
 
     # reshape back to (L,S,A)
     return np.maximum(Lambda.value, 0.0).reshape((L, S, A))
+
+
+
+
+# --------------------------------------------------------------
+# helper: build *once* and keep around
+# --------------------------------------------------------------
+# import numpy as np
+# import scipy.sparse as sp
+
+# def precompute_flow_matrices(P_hat, rho, L, S, A):
+#     """Return (G, h) as CSC‑sparse matrices that never change across episodes."""
+#     n_var = L * S * A
+#     rows, cols, data = [], [], []
+
+#     rhs = []
+
+#     # ---- initial‑state rows (l = 0) ----
+#     for s in range(S):
+#         for a in range(A):
+#             rows.append(len(rhs))          # current row index
+#             cols.append(s * A + a)         # λ₀(s,a) column
+#             data.append(1.0)               # coefficient
+#         rhs.append(rho[s])
+
+#     # ---- flow rows (l = 0 .. L‑2) ----
+#     for l in range(L - 1):
+#         idx_curr = l * S * A
+#         idx_next = (l + 1) * S * A
+
+#         for s_next in range(S):
+#             # outgoing part – subtract P_hat
+#             for s in range(S):
+#                 for a in range(A):
+#                     rows.append(len(rhs))
+#                     cols.append(idx_curr + s * A + a)
+#                     data.append(-P_hat[s_next, s, a])
+
+#             # incoming part – add 1 on λ_{l+1}(s_next,*)
+#             for a in range(A):
+#                 rows.append(len(rhs))
+#                 cols.append(idx_next + s_next * A + a)
+#                 data.append(1.0)
+
+#             rhs.append(0.0)
+
+#     # assemble sparse matrix
+#     G = sp.csc_matrix((data, (rows, cols)), shape=(len(rhs), n_var))
+#     h = np.asarray(rhs)
+
+#     return G, h

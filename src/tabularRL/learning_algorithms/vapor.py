@@ -1,5 +1,6 @@
 # TODO: fix variable names and add "we accelerate learning by imagining that each experienced transition (s, a, s′, r) is repeated 100 times.""
 # TODO: vectorise outer seed loop so that we can run multiple seeds at once. 100 episodes should take 100 minutes.
+# TODO: warm start? compile problem once?
 
 import numpy as np
 from gymnasium import Env
