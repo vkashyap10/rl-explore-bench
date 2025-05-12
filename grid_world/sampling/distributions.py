@@ -1,9 +1,10 @@
 # ------------------------------------------------------------------
 #  Posterior-sampling helpers
 # ------------------------------------------------------------------
+from typing import Optional, Tuple
+
 import numpy as np
-from typing import Tuple, Optional
-import numpy as np
+
 
 def sample_dirichlet_mat(
     alpha: np.ndarray,
@@ -29,17 +30,11 @@ def sample_dirichlet_mat(
         Sampled transition probabilities with the same shape as ``alpha``.
     """
 
-    if rng is None:
-        rng = np.random.default_rng()
-
     # Gamma draw followed by normalisation along the *first* axis
     theta = rng.gamma(shape=alpha, scale=1.0)
     theta /= theta.sum(axis=0, keepdims=True)
     return theta
 
-
-import numpy as np
-from typing import Tuple, Optional
 
 def sample_normal_gamma_mat(
     reward_mean_prior: np.ndarray,
@@ -49,8 +44,8 @@ def sample_normal_gamma_mat(
     total_visits: np.ndarray,
     reward_running_mean: np.ndarray,
     reward_running_var: np.ndarray,
+    rng: np.random.Generator,
     draw_sample: bool = True,
-    rng: Optional[np.random.Generator] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Compute or sample from the Normal-Gamma posterior distribution.
@@ -65,24 +60,30 @@ def sample_normal_gamma_mat(
     mu  : Sampled or expected means (shape S×A)
     std_n : Sampled or expected std_n (shape S×A)
     """
-    if rng is None:
-        rng = np.random.default_rng()
 
     alpha0 = reward_precision_strength / 2.0
     beta0 = alpha0 / reward_precision_prior
 
     lambda_n = reward_mean_strength + total_visits
-    mu_n = (reward_mean_strength * reward_mean_prior + total_visits * reward_running_mean) / lambda_n
+    mu_n = (
+        reward_mean_strength * reward_mean_prior + total_visits * reward_running_mean
+    ) / lambda_n
     alpha_n = alpha0 + total_visits / 2.0
-    beta_n = beta0 + 0.5 * (total_visits * reward_running_var + reward_mean_strength * total_visits * (reward_running_mean - reward_mean_prior) ** 2 / lambda_n)
+    beta_n = beta0 + 0.5 * (
+        total_visits * reward_running_var
+        + reward_mean_strength
+        * total_visits
+        * (reward_running_mean - reward_mean_prior) ** 2
+        / lambda_n
+    )
 
     if draw_sample:
         tau = rng.gamma(shape=alpha_n, scale=1.0 / beta_n)
         std_n = np.sqrt(1.0 / (lambda_n * tau))
         mu = rng.normal(loc=mu_n, scale=std_n)
     else:
-        tau = alpha_n / beta_n   # Expected precision of Gamma(alpha, beta)
-        mu = mu_n                # Posterior mean of Normal
+        tau = alpha_n / beta_n  # Expected precision of Gamma(alpha, beta)
+        mu = mu_n  # Posterior mean of Normal
         std_n = np.sqrt(1.0 / (lambda_n * tau))
 
     return mu, std_n
@@ -96,3 +97,20 @@ def sample_action_from_scores(scores: np.ndarray, rng: np.random.Generator) -> i
         return rng.integers(len(scores))
     probs = scores / norm
     return rng.choice(len(scores), p=probs)
+
+
+def update_running_mean_var(
+    mean: np.ndarray,
+    var: np.ndarray,
+    count: np.ndarray,
+    state: int,
+    action: int,
+    reward: float,
+    multiplier: int = 1,
+):
+    """Online update of reward mean and variance using Welford's algorithm."""
+    count[state, action] += multiplier
+    n = count[state, action]
+    delta = reward - mean[state, action]
+    mean[state, action] += delta / n
+    var[state, action] += delta * (reward - mean[state, action])

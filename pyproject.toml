@@ -1,0 +1,24 @@
+[project]
+name = "grid_world"
+version = "0.1.0"
+description = "Bayesian exploration in tabular RL (PSRL + VAPOR)"
+authors = [{ name="Vishal Kashyap", email="vkashyap1007@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "gymnasium",
+    "mo-gymnasium",
+    "cvxpy",
+    "tqdm",
+    "omegaconf",
+    "black",
+    "ruff",
+    "isort",
+    "pre-commit"
+]
+
+[build-system]
+requires = ["flit"]
+build-backend = "flit.buildapi"
