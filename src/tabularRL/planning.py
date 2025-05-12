@@ -39,7 +39,7 @@ def bellman(
 
     new_val = q_vals.max(axis=1)
     new_pol = q_vals.argmax(axis=1)
-    return new_val, new_pol
+    return new_val, new_pol, q_vals
 
 
 def dp_value_iteration(
@@ -73,10 +73,10 @@ def dp_value_iteration(
     value: np.ndarray  # for the type checker
     policy: np.ndarray
     for _ in range(int(tau)):
-        value, policy = bellman(old_val, probs, rewards, rng)
+        value, policy, q_vals = bellman(old_val, probs, rewards, rng)
         old_val = value
 
-    return value, policy
+    return value, policy, q_vals
 
 
 # --------------------------------------------------------------
@@ -192,16 +192,36 @@ def _build_flow_matrix(P_hat, rho, L, S, A):
 # ------------------------------------------------------------------
 #  Solve VAPOR convex program
 # ------------------------------------------------------------------
-def quad_over_lin(X, y):
-  t = cp.Variable()
-  expr = cp.vstack([2*X, y[None,:]-t])
-  constr = cp.SOC(y-t, expr, axis=0)
-  return t, constr
+
+def get_unknown_dynamics_reward_var(reward_std_flat, steps_per_episode, alpha, num_states, num_actions):
+    """
+    transition dynamics and reward distributions are time independent.
+    """
+    # Broadcast reward variance across timesteps: (L, S, A)
+    reward_var_stack = np.tile(reward_std_flat[None, :, :], (steps_per_episode, 1, 1))  # shape (L, S, A)
+
+    # print("reward_var_stack", reward_var_stack.shape)
+    # print("reward_variance", reward_variance.shape)
+
+    # Compute ∑_{s'} α(s′, s, a) over next states
+    alpha_sum = alpha.sum(axis=0)  # shape (S, A)
+
+    # print("alpha_sum", alpha_sum.shape)
+
+    # Now compute σ_p^2 for each timestep l
+    reward_var_augmented = np.zeros((steps_per_episode, num_states, num_actions))
+
+    for l in range(steps_per_episode):
+        discount_term = (steps_per_episode - l) ** 2
+        reward_var_augmented[l] = 3.6**2 * np.square(reward_var_stack[l]) + discount_term * alpha_sum
+
+    return reward_var_augmented
+
 
 # ------------------------------------------------------------------
 #  Solve VAPOR convex program  (DCP‑compliant version)
 # ------------------------------------------------------------------
-def solve_vapor(mu, sigma, P_hat, rho, L, S, A, *, eps: float = 1e-9):
+def solve_vapor(reward_mean, reward_std, alpha, initial_state_distribution, steps_per_episode, num_states, num_actions, eps: float = 1e-6):
     """
     Exact tabular VAPOR optimiser.
 
@@ -218,128 +238,57 @@ def solve_vapor(mu, sigma, P_hat, rho, L, S, A, *, eps: float = 1e-9):
     eps        : float
         Small constant to keep log(·) well‑defined.
 
-    Returns
+    Returnstotal_timesteps
     -------
     Lambda_opt : ndarray, shape (L, S, A)
         Optimal occupancy measure.
     """
-    n_var   = L * S * A
-    Lambda  = cp.Variable(n_var, nonneg=True)      # flattened λ
-    t       = cp.Variable(n_var)                   # epigraph helper
-    mu_vec  = np.tile(mu, (L, 1)).flatten(order="C")     # shape (L*S*A,)
-    sig_vec = np.tile(sigma, (L, 1)).flatten(order="C")  # shape (L*S*A,)
+    num_vars = steps_per_episode * num_states * num_actions
+    occupancy = cp.Variable(num_vars, nonneg=True)      # flattened λ
+    occupancy_safe = occupancy + eps
+    t_aux = cp.Variable(num_vars)                   # epigraph helper
+    z_aux = cp.Variable(num_vars)
 
-    # --------------------------- #
-    #   Epigraph‑cone constraint  #
-    # --------------------------- #
-    # Requirement:   t_i ≥ λ_i * sqrt(‑2 log λ_i)
-    #
-    # Equivalent convex inequality:
-    #   –λ_i log λ_i  ≥  t_i² / (2 λ_i)
-    #
-    # The RHS is represented with the SOC atom
-    #       quad_over_lin(t_i , 2 λ_i)
-    # which is DCP‑valid because  λ ↦ quad_over_lin(t, 2λ)  is convex
-    # and affine in its second argument.
-    # build element‑wise RHS  u_i = t_i² / (2 λ_i)
-    # u = cp.hstack([
-    #         cp.quad_over_lin(t[i], 2 * (Lambda[i] + eps))
-    #         for i in range(n_var)
-    #     ])
+    reward_mean_flat  = np.tile(reward_mean, (steps_per_episode, 1)).flatten(order="C")     # shape (L*S*A,)
+    transition_probability = alpha / alpha.sum(axis=0, keepdims=True) # posterior
+    reward_std_flat = np.tile(reward_std, (steps_per_episode, 1)).flatten(order="C")  # shape (L*S*A,)
+    # reward_std_flat = get_unknown_dynamics_reward_var(reward_std, steps_per_episode, alpha, num_states, num_actions)
+    # reward_std_flat = cp.Constant(reward_std_flat.flatten(order="C"))
 
-    # SOC block (one cone, axis = 0)
-    # Build z = [ 2·τ ; (Λ + ε) – τ ]  ∈ ℝ^{2n}
-    # and y   = (Λ + ε) + τ            ∈ ℝ^{n}
-    # auxiliary variable that will be t_i² / (2 λ_i)
-    u = cp.Variable(n_var)
+    # epigraph: t_i² ≤ 2 λ_i z_i
+    expr = cp.vstack([cp.sqrt(2) * t_aux, occupancy_safe - z_aux])   # (2, n)
+    soc_constraint  = cp.SOC(occupancy_safe + z_aux, expr, axis=0)
 
-    z  = cp.vstack([2 * t, (Lambda + eps) - u])
-    y  = (Lambda + eps) + u
-    soc_constr = cp.SOC(y, z, axis=0)
+    # entropy part stays the same
+    entropy_constraint = z_aux <= cp.entr(occupancy_safe)
 
-    # constraints = [
-    #     u <= cp.entr(Lambda + eps)
-    # ]
     # entropy side
-    entr_constr = u <= cp.entr(Lambda + eps) # removing the negative sign worked. why?
-
-    constraints = [soc_constr, entr_constr]
-
-
+    constraints = [soc_constraint, entropy_constraint]
 
     # --------------------------- #
     #   Flow conservation         #
     # --------------------------- #
-    G, h = _build_flow_matrix(P_hat, rho, L, S, A)
-    constraints += [G @ Lambda == h]
+    flow_matrix, flow_rhs = _build_flow_matrix(transition_probability, initial_state_distribution, steps_per_episode, num_states, num_actions)
+    constraints += [flow_matrix @ occupancy == flow_rhs]
 
     # --------------------------- #
     #   Objective                 #
     # --------------------------- #
-    objective = cp.Maximize(mu_vec @ Lambda + sig_vec @ t)
+    print("reward mean", reward_mean_flat)
+    print("reward_std_flat", reward_std_flat)
+    print("transition_probability", transition_probability[1,1,:])
+    objective = cp.Maximize(reward_mean_flat @ occupancy + reward_std_flat @ t_aux)
 
-    prob = cp.Problem(objective, constraints)
-    prob.solve(
+    optimization_problem = cp.Problem(objective, constraints)
+    optimization_problem.solve(
         solver=cp.ECOS,            # exponential‑cone capable
         abstol=1e-8,
-        # reltol=1e-8,
-        # feastol=1e-8,
-        verbose=True
+        warm_start=True,
+        verbose=False
     )
 
-    if prob.status not in ("optimal", "optimal_inaccurate"):
+    if optimization_problem.status not in ("optimal", "optimal_inaccurate"):
         raise RuntimeError(f"VAPOR optimisation failed")
 
     # reshape back to (L,S,A)
-    return np.maximum(Lambda.value, 0.0).reshape((L, S, A))
-
-
-
-
-# --------------------------------------------------------------
-# helper: build *once* and keep around
-# --------------------------------------------------------------
-# import numpy as np
-# import scipy.sparse as sp
-
-# def precompute_flow_matrices(P_hat, rho, L, S, A):
-#     """Return (G, h) as CSC‑sparse matrices that never change across episodes."""
-#     n_var = L * S * A
-#     rows, cols, data = [], [], []
-
-#     rhs = []
-
-#     # ---- initial‑state rows (l = 0) ----
-#     for s in range(S):
-#         for a in range(A):
-#             rows.append(len(rhs))          # current row index
-#             cols.append(s * A + a)         # λ₀(s,a) column
-#             data.append(1.0)               # coefficient
-#         rhs.append(rho[s])
-
-#     # ---- flow rows (l = 0 .. L‑2) ----
-#     for l in range(L - 1):
-#         idx_curr = l * S * A
-#         idx_next = (l + 1) * S * A
-
-#         for s_next in range(S):
-#             # outgoing part – subtract P_hat
-#             for s in range(S):
-#                 for a in range(A):
-#                     rows.append(len(rhs))
-#                     cols.append(idx_curr + s * A + a)
-#                     data.append(-P_hat[s_next, s, a])
-
-#             # incoming part – add 1 on λ_{l+1}(s_next,*)
-#             for a in range(A):
-#                 rows.append(len(rhs))
-#                 cols.append(idx_next + s_next * A + a)
-#                 data.append(1.0)
-
-#             rhs.append(0.0)
-
-#     # assemble sparse matrix
-#     G = sp.csc_matrix((data, (rows, cols)), shape=(len(rhs), n_var))
-#     h = np.asarray(rhs)
-
-#     return G, h
+    return np.maximum(occupancy.value, 0.0).reshape((steps_per_episode, num_states, num_actions))

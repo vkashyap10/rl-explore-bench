@@ -2,10 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from gymnasium import Env
 from tqdm import trange
-from tabularRL.sampling import sample_dirichlet_mat, sample_normal_gamma_mat
+from tabularRL.sampling import sample_dirichlet_mat, sample_normal_gamma_mat, sample_action_from_scores
 from tabularRL.planning import dp_value_iteration
 from tabularRL.viz import *
-from tabularRL.env import flatten_grid_state
+from tabularRL.env import flatten_grid_state, extract_env_metadata
 
 # ------------------------------------------------------------------
 #  Main PSRL routine
@@ -21,6 +21,7 @@ def psrl(
     reward_precision_strength: np.ndarray,
     transition_dirichlet_prior: np.ndarray,
     seed: int | None = None,
+    experience_multiplier:int =1
 ):
     """
     Posterior Sampling for Reinforcement Learning (PSRL).
@@ -62,91 +63,53 @@ def psrl(
 
     if seed is not None:
         np.random.seed(seed)
+    rng = np.random.default_rng(seed)
 
-    num_states = 4 * env.unwrapped.width * env.unwrapped.height
-    num_actions = 3 # env.action_space.n
-    total_timesteps = num_episodes * steps_per_episode # total number of steps
+    width, height, num_states, num_actions = extract_env_metadata(env)
 
     # Empirical tallies
-    episode_visits  = np.zeros((num_states, num_actions), dtype=int)
     total_visits  = np.zeros((num_states, num_actions), dtype=int)
     transition_counts_obs  = np.zeros_like(transition_dirichlet_prior, dtype=int) # empirical transition count
     reward_running_mean = np.zeros((num_states, num_actions))
     reward_running_var  = np.zeros((num_states, num_actions))
 
-    # Logs
-    rewards  = np.zeros(total_timesteps)
-    states   = np.zeros(total_timesteps, dtype=int)
-    actions  = np.zeros(total_timesteps, dtype=int)
-    values_log   = np.zeros((num_episodes, num_states))
-    policies_log = np.zeros((num_episodes, num_states), dtype=int)
-
     global_step = 0
+    plt.ion()
+    figR, axesR, imgsR, cbarsR = init_reward_heatmaps(width, height)
 
-    # plt.ion()
-    # figV, axesV, imgsV = init_value_heatmaps(env.unwrapped.width, env.unwrapped.height)
-    # figR, axesR, imgsR, cbarsR = init_reward_heatmaps(env.unwrapped.width, env.unwrapped.height)
-    # figP, axesP, imgsP = init_transition_heatmaps(env.unwrapped.width, env.unwrapped.height)
-
-    print("total episodes: ", num_episodes)
-    print("episode length: ", steps_per_episode)
-    print("initial pos:", env.unwrapped.agent_pos)
-    print("grid: ", env.unwrapped.width)
-    print("grid: ", env.unwrapped.height)
     for episode in trange(num_episodes, desc="Training episodes", unit="ep"):
 
-        
         obs, _ = env.reset(seed=seed)
-        state = flatten_grid_state(env)
-
-        episode_visits.fill(0)     # reset per-episode counts
+        state = flatten_grid_state(env, obs)
 
         # ---------- Posterior sample ----------
         alpha = transition_dirichlet_prior + transition_counts_obs
         p_sample = sample_dirichlet_mat(alpha)
         mu_sample, _ = sample_normal_gamma_mat(reward_mean_prior, reward_mean_strength, reward_precision_prior,
                                                reward_precision_strength, total_visits, reward_running_mean, reward_running_var)
+        
+        reward_mean, reward_std = sample_normal_gamma_mat(reward_mean_prior, reward_mean_strength, reward_precision_prior,
+                                               reward_precision_strength, total_visits, reward_running_mean, reward_running_var, draw_sample=False)
 
         # ---------- Plan ----------
-        state_values, policy = dp_value_iteration(p_sample, mu_sample, steps_per_episode)
-        values_log[episode]   = state_values
-        policies_log[episode] = policy
+        state_values, policy, q_vals = dp_value_iteration(p_sample, mu_sample, steps_per_episode)
 
-        # update VALUE figure (already present)
-        # update_value_heatmaps(imgsV, values_log[episode], env.unwrapped.width, env.unwrapped.height,
-        #                       episode+1, figV)
-
-        # update REWARD & VARIANCE figure
-        # update_reward_heatmaps(imgsR, reward_running_mean, reward_running_var, env.unwrapped.width, env.unwrapped.height,
-        #                        episode+1, figR)
-        
-        # update_reward_heatmaps(imgsR, reward_running_mean, reward_running_var, env.unwrapped.width, env.unwrapped.height,
-        #                episode + 1, figR, cbarsR)
-
-        # update TRANSITION figure **using the sampled P of this episode**
-        # update_transition_heatmaps(imgsP, p_sample,
-        #                            40, env.unwrapped.width, env.unwrapped.height,
-        #                            episode+1, figP)
-
-
+        update_reward_heatmaps(imgsR, reward_mean, reward_std, width, height, episode + 1, figR, cbarsR)
 
         # ---------- Act ----------
         episode_rewards = 0
         for step_in_episode in range(steps_per_episode):
-            action = policy[state]
-            obs, reward, terminated, truncated, info = env.step(action)
+
+            action = sample_action_from_scores(scores = q_vals[state], rng=rng)
+                
+            obs, vector_reward, terminated, truncated, info = env.step(action)
+            reward = sum(vector_reward)
             episode_rewards += reward
             done = terminated or truncated
-            new_state = flatten_grid_state(env)
-
-            # Logs
-            actions[global_step] = action
-            rewards[global_step] = reward
-            states[global_step]  = state
+            new_state = flatten_grid_state(env, obs)
 
             # Online reward mean/variance (Welford)
-            episode_visits[state, action] += 1
-            total_visits[state, action] += 1
+            total_visits[state, action] += 1 * experience_multiplier
             n = total_visits[state, action]
 
             delta = reward - reward_running_mean[state, action]
@@ -154,9 +117,13 @@ def psrl(
             reward_running_var[state, action]  = ((n - 1) * reward_running_var[state, action] +
                                      delta * (reward - reward_running_mean[state, action])) / n
 
+            # the transition probabilities should update if episode is terminated. 0 for all states.
+            if terminated:
+                transition_counts_obs[new_state, new_state, :] += 1 * experience_multiplier # all actions lead to termination
+
             # Transition counts (skip the forced reset at the end)
             if step_in_episode != steps_per_episode - 1:
-                transition_counts_obs[new_state, state, action] += 1
+                transition_counts_obs[new_state, state, action] += 1 * experience_multiplier
                 state = new_state
 
             global_step += 1
@@ -169,4 +136,4 @@ def psrl(
 
     # plt.ioff()
     # plt.show()  # Keeps final plot open
-    return rewards, states, actions, values_log, policies_log, total_visits
+    return
