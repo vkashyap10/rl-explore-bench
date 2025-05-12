@@ -1,9 +1,16 @@
 # configs/default.yaml
 seed: 42
-n_iters: 1
-num_episodes: 50
-steps_per_episode: 20
+n_iters: 3
+num_episodes: 10
+steps_per_episode: 30
 env_name: deep-sea-treasure-v0
 experience_multiplier: 100
 render_mode: human
-plotting: True
+plotting: False
+
+
+# TODO:
+# docstrings: include references
+# better variable names (check sampling and vapor solver)
+# wrap env.step to give reward only when highest treasure reaached? similar to env in paper?
+# run experiments

@@ -127,16 +127,16 @@ def get_unknown_dynamics_reward_var(
     alpha_sum = alpha.sum(axis=0)  # shape (S, A)
 
     # Now compute σ_p^2 for each timestep l
-    reward_var_augmented = np.zeros((steps_per_episode, num_states, num_actions))
+    reward_std_augmented = np.zeros((steps_per_episode, num_states, num_actions))
 
     for time_step in range(steps_per_episode):
         discount_term = (steps_per_episode - time_step) ** 2
-        reward_var_augmented[time_step] = (
+        reward_std_augmented[time_step] = np.sqrt(
             3.6**2 * np.square(reward_var_stack[time_step])
-            + discount_term * alpha_sum
+            + discount_term / alpha_sum
         )
 
-    return reward_var_augmented
+    return reward_std_augmented
 
 
 # ------------------------------------------------------------------
@@ -183,11 +183,13 @@ def solve_vapor(
         order="C"
     )  # shape (L*S*A,)
     transition_probability = alpha / alpha.sum(axis=0, keepdims=True)  # posterior
-    reward_std_flat = np.tile(reward_std, (steps_per_episode, 1)).flatten(
-        order="C"
-    )  # shape (L*S*A,)
-    # reward_std_flat = get_unknown_dynamics_reward_var(reward_std, steps_per_episode, alpha, num_states, num_actions)
-    # reward_std_flat = cp.Constant(reward_std_flat.flatten(order="C"))
+    # reward_std_flat = np.tile(reward_std, (steps_per_episode, 1)).flatten(
+    #     order="C"
+    # )  # shape (L*S*A,)
+    reward_std_flat = get_unknown_dynamics_reward_var(
+        reward_std, steps_per_episode, alpha, num_states, num_actions
+    )
+    reward_std_flat = cp.Constant(reward_std_flat.flatten(order="C"))
 
     # epigraph: t_i² ≤ 2 λ_i z_i
     expr = cp.vstack([cp.sqrt(2) * t_aux, occupancy_safe - z_aux])  # (2, n)
@@ -218,7 +220,7 @@ def solve_vapor(
 
     optimization_problem = cp.Problem(objective, constraints)
     optimization_problem.solve(
-        solver=cp.ECOS,  # exponential‑cone capable
+        solver=cp.ECOS,
         abstol=1e-8,
         warm_start=True,
         verbose=False,

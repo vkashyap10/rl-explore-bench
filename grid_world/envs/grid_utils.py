@@ -4,13 +4,13 @@ import mo_gymnasium as mo_gym
 import numpy as np
 from gymnasium import Env
 
-from grid_world.envs.wrappers import IgnoreTermination, RandomStartPosition
+from grid_world.envs.wrappers import IgnoreTermination
 
 
 def make_env(cfg, rng: np.random.Generator):
     env = mo_gym.make(cfg.env_name, render_mode=cfg.render_mode)
     env = IgnoreTermination(env)
-    env = RandomStartPosition(env, rng=rng)
+    # env = RandomStartPosition(env, rng=rng)
     return env
 
 

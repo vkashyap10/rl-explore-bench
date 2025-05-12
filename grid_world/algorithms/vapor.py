@@ -134,4 +134,4 @@ def vapor(
         plt.ioff()
         plt.show()  # Keeps final plot open
 
-    return rewards, reward_stds
+    return np.array(rewards), np.stack(reward_stds)
