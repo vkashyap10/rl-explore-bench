@@ -1,10 +1,11 @@
 # RL-Explore-Bench
 
-A light-weight playground for **efficient exploration algorithms** in reinforcement learning, centred on an implementation of **VAPOR** (Variational Approximation of Posterior Optimality) from *“Probabilistic Inference in Reinforcement Learning Done Right”* and a reference baseline of **Posterior Sampling RL (PSRL)**. This repository provides an unofficial implementation of the VAPOR algorithm.
+Unofficial PyTorch implementation of **VAPOR (Variational Approximation of Posterior Optimality)** for **Bayesian Reinforcement Learning** exploration. Based on the paper *"Probabilistic Inference in Reinforcement Learning Done Right" (NeurIPS 2023)*. Includes baseline comparison with **Posterior Sampling RL (PSRL)**.
+
 
 | VAPOR in action | Average episodic return | Posterior reward uncertainty |
 | :--: | :--: | :--: |
-| ![Deep-Sea Exploration](grid_world/assets/env_reward.gif) | ![Return](grid_world/assets/mean_reward_30_horizon.png) | ![Uncertainty](grid_world/assets/reward_uncertainty_30_horizon.png) |
+| ![GIF showing VAPOR exploring a Deep-Sea environment](grid_world/assets/env_reward.gif) | ![Return](grid_world/assets/mean_reward_30_horizon.png) | ![Uncertainty](grid_world/assets/reward_uncertainty_30_horizon.png) |
 
 ---
 
