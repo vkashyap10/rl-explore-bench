@@ -38,12 +38,18 @@ rl-explore-bench/
 > **Prerequisites** – Linux/macOS, Python ≥ 3.9.
 
 ```bash
-git clone https://github.com/your-handle/rl-explore-bench.git
+# Clone the repository
+git clone https://github.com/vkashyap10/rl-explore-bench.git
 cd rl-explore-bench
-python -m venv .venv
-source .venv/bin/activate
+
+# Create a conda environment with Python ≥ 3.11
+conda create -n rl-explore-bench python=3.11 -y
+conda activate rl-explore-bench
+
+# Install dependencies
 pip install -U pip wheel
-pip install -e .                    # installs cvxpy, numpy, matplotlib, tqdm, ruff …
+pip install -e .                   # installs cvxpy, numpy, matplotlib, tqdm, ruff …
+
 ```
 
 ---
@@ -53,30 +59,36 @@ pip install -e .                    # installs cvxpy, numpy, matplotlib, tqdm, r
 Run the comparison between VAPOR and PSRL on the Deep-Sea environment (default: 30-time steps per episode, 100 episodes):
 
 ```bash
-python examples/deep_sea_demo.py
-```
+python grid_world/examples/deep_sea_demo.py
 
-The script prints cumulative regret and dumps the two PNGs you see above into
-`assets/`. Edit the script or import `rl_explore_bench` in a notebook to play.
+```
 
 ---
 
 ## 📖 References
 
-### 1️⃣ Original VAPOR paper
+VAPOR
 ```bibtex
-@inproceedings{tarbouriech2023vapor,
-  title     = {Probabilistic Inference in Reinforcement Learning Done Right},
-  author    = {Tarbouriech, Jean and Lattimore, Tor and O'Donoghue, Brendan},
-  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
-  year      = {2023}
+@misc{tarbouriech2023probabilisticinferencereinforcementlearning,
+      title={Probabilistic Inference in Reinforcement Learning Done Right}, 
+      author={Jean Tarbouriech and Tor Lattimore and Brendan O'Donoghue},
+      year={2023},
+      eprint={2311.13294},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2311.13294}, 
 }
-
-@inproceedings{osband2013more,
-  title     = {More Efficient Reinforcement Learning via Posterior Sampling},
-  author    = {Osband, Ian and Russo, Daniel and Van Roy, Benjamin},
-  booktitle = {Advances in Neural Information Processing Systems},
-  year      = {2013}
+```
+Posterior Sampling RL
+```bibtex
+@misc{osband2013moreefficientreinforcementlearning,
+      title={(More) Efficient Reinforcement Learning via Posterior Sampling}, 
+      author={Ian Osband and Daniel Russo and Benjamin Van Roy},
+      year={2013},
+      eprint={1306.0940},
+      archivePrefix={arXiv},
+      primaryClass={stat.ML},
+      url={https://arxiv.org/abs/1306.0940}, 
 }
-
+```
 ---

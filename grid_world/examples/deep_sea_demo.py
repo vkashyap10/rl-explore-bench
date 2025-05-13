@@ -18,7 +18,7 @@ def run_experiment(
     plotting: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Run a Bayesian RL experiment using PSRL or VAPOR in a tabular environment.
+    Run a Bayesian RL experiment using PSRL / VAPOR in a grid environment.
 
     Args:
         env (Env): Gymnasium environment instance.
@@ -26,13 +26,6 @@ def run_experiment(
         n_iters (int): Number of independent runs.
         num_episodes (int): Number of episodes per run.
         steps_per_episode (int): Maximum steps per episode.
-        learning_algorithm (str): Learning algorithm, either "psrl" or "vapor".
-
-    Returns:
-        Tuple of:
-            - r_psrl: Array of rewards.
-            - true_val: Placeholder for value function.
-            - rho_list: Placeholder array.
     """
 
     # Setup shapes

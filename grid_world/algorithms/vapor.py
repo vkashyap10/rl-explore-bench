@@ -1,4 +1,3 @@
-# TODO: vectorise outer seed loop so that we can run multiple seeds at once. 100 episodes should take 100 minutes.
 import matplotlib.pyplot as plt
 import numpy as np
 from gymnasium import Env
@@ -33,9 +32,7 @@ def vapor(
     plotting: bool = False,
 ):
     """
-    Tabular VAPOR (Tarbouriech et al., NeurIPS 2023)
-
-    Returns the same tuple as your psrl(...) helper for easy drop‑in.
+    Probabilistic Inference in Reinforcement Learning Done Right (Tarbouriech et al., NeurIPS 2023)
     """
 
     width, height, num_states, num_actions = extract_env_metadata(env)

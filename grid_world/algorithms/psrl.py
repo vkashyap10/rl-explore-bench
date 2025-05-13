@@ -33,16 +33,13 @@ def psrl(
     Posterior Sampling for Reinforcement Learning (PSRL).
 
     At the start of every episode, the agent draws a complete Markov
-    Decision Process (MDP) from its Bayesian posterior, plans an optimal
-    *deterministic* policy for that sample, and then follows the policy
-    for ``steps_per_episode`` steps.  After each episode the environment resets
-    deterministically to state ``s1``.
+    Decision Process (MDP) from its Bayesian posterior, computes a policy for
+    that sample, and then follows the policy for ``steps_per_episode`` steps.
 
     Parameters
     ----------
     num_episodes : Number of episodes to run.
     steps_per_episode : Length of each episode (time-steps per episode).
-    s1 : Index of the start state at the beginning of every episode
     reward_mean_prior : (S, A) Prior mean of rewards.
     reward_mean_strength : (S, A) Equivalent sample size that ``reward_mean_prior`` represents.
     reward_precision_prior : (S, A) Prior precision (inverse variance) of rewards.
@@ -53,7 +50,7 @@ def psrl(
     References
     ----------
     Ian Osband, Daniel Russo & Benjamin Van Roy,
-    *“(More) Efficient Reinforcement Learning via Posterior Sampling.”*
+    (More) Efficient Reinforcement Learning via Posterior Sampling.
     NeurIPS 2013.
     """
 

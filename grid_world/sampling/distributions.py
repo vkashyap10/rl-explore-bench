@@ -10,11 +10,7 @@ def sample_dirichlet_mat(
     alpha: np.ndarray,
     rng: Optional[np.random.Generator] = None,
 ) -> np.ndarray:
-    """Draw a transition‑probability tensor from a Dirichlet prior.
-
-    A faithful vectorised port of MATLAB's ``sampleDirichletMat``.  Each slice
-    along the *second* dimension is treated as an independent Dirichlet whose
-    concentration parameters are given by ``alpha``.
+    """Draw a transition‑probability tensor from a Dirichlet prior
 
     Parameters
     ----------

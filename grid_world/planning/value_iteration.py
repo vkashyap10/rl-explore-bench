@@ -65,6 +65,7 @@ def dp_value_iteration(
     -------
     value  : (S,) ndarray – final value estimate after *τ* iterations.
     policy : (S,) ndarray – greedy action indices corresponding to *value*.
+    q_vals : (S,A) ndarray – Q value for state action pair.
     """
 
     S, A = rewards.shape  # noqa: F841 – A is unused but kept for clarity

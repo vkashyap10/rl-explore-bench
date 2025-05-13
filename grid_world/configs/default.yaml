@@ -1,9 +1,9 @@
 # configs/default.yaml
 seed: 42
 n_iters: 3                      # number of iterations for comparison
-num_episodes: 10
+num_episodes: 300
 steps_per_episode: 30
 env_name: deep-sea-treasure-v0
 experience_multiplier: 100      # count each transition mulitple times to accelerate convergence.
-render_mode: None               # render_mode for environment ["human", None]
-plotting: False                 # plot average reward and reward uncertainty per episode
+render_mode: human               # render_mode for environment ["human", None]
+plotting: True                 # plot average reward and reward uncertainty per episode

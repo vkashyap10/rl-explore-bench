@@ -1,5 +1,5 @@
 # --------------------------------------------------------------
-#  Solve the VAPOR‑lite convex program and return λ*, π*
+#  Solve the VAPOR‑lite convex program
 # --------------------------------------------------------------
 import cvxpy as cp
 import numpy as np
@@ -95,13 +95,13 @@ def solve_vapor(
 
     Parameters
     ----------
-    mu, sigma : ndarray, shape (S, A)
+    reward_mean, reward_std : ndarray, shape (S, A)
         Posterior mean and s.d. of the rewards.
-    P_hat      : ndarray, shape (S, S, A)
-        Posterior mean transition probabilities  P(s' | s,a).
-    rho        : ndarray, shape (S,)
+    alpha      : ndarray, shape (S, S, A)
+        Dirichlet concentration parameters .
+    initial_state_distribution        : ndarray, shape (S,)
         Start‑state distribution.
-    L, S, A    : ints
+    steps_per_episode, num_states, num_actions    : ints
         Horizon, number of (flattened) states and actions.
     eps        : float
         Small constant to keep log(·) well‑defined.
