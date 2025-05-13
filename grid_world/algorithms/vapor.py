@@ -8,7 +8,7 @@ from grid_world.envs.grid_utils import extract_env_metadata, flatten_grid_state
 from grid_world.planning.vapor_solver import solve_vapor
 from grid_world.sampling.distributions import (sample_action_from_scores,
                                                sample_normal_gamma_mat,
-                                               update_running_mean_var)
+                                               update_obs_reward_stats)
 from grid_world.utils.viz import init_reward_heatmaps, update_reward_heatmaps
 
 # ------------------------------------------------------------------
@@ -41,11 +41,10 @@ def vapor(
 
     # tallies
     total_visits = np.zeros((num_states, num_actions), dtype=int)
-    reward_running_mean = np.zeros((num_states, num_actions))
-    reward_running_var = np.zeros((num_states, num_actions))
+    reward_mean_obs = np.zeros((num_states, num_actions))
+    reward_var_obs = np.zeros((num_states, num_actions))
     transition_counts_obs = np.zeros_like(transition_dirichlet_prior, dtype=int)
 
-    global_step = 0
     rewards = []
     reward_stds = []
 
@@ -65,8 +64,8 @@ def vapor(
             reward_precision_prior,
             reward_precision_strength,
             total_visits,
-            reward_running_mean,
-            reward_running_var,
+            reward_mean_obs,
+            reward_var_obs,
             draw_sample=False,
             rng=rng,
         )
@@ -88,38 +87,33 @@ def vapor(
 
         # ---------- Act ----------
         episode_rewards = 0.0
-        for t in range(steps_per_episode):
-            action = sample_action_from_scores(scores=Lambda_opt[t, state], rng=rng)
+        for step_in_episode in range(steps_per_episode):
+            action = sample_action_from_scores(
+                scores=Lambda_opt[step_in_episode, state], rng=rng
+            )
 
             obs, vector_reward, terminated, truncated, _ = env.step(action)
             reward = sum(vector_reward)
             episode_rewards += reward
             next_state = flatten_grid_state(env, obs)
 
-            update_running_mean_var(
-                mean=reward_running_mean,
-                var=reward_running_var,
-                count=total_visits,
+            update_obs_reward_stats(
+                mean=reward_mean_obs,
+                var=reward_var_obs,
+                total_visits=total_visits,
                 state=state,
                 action=action,
                 reward=reward,
                 multiplier=experience_multiplier,
             )
 
-            # the transition probabilities should update if episode is terminated. 0 for all states.
-            if terminated:
-                transition_counts_obs[next_state, next_state, :] += (
-                    1 * experience_multiplier
-                )  # all actions lead to termination
-
             # transition counts (except last step)
-            if t < steps_per_episode - 1:
+            if step_in_episode < steps_per_episode - 1:
                 transition_counts_obs[next_state, state, action] += (
                     1 * experience_multiplier
                 )
                 state = next_state
 
-            global_step += 1
             if terminated or truncated:
                 break
 

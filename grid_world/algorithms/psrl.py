@@ -8,7 +8,7 @@ from grid_world.planning.value_iteration import dp_value_iteration
 from grid_world.sampling.distributions import (sample_action_from_scores,
                                                sample_dirichlet_mat,
                                                sample_normal_gamma_mat,
-                                               update_running_mean_var)
+                                               update_obs_reward_stats)
 from grid_world.utils.viz import init_reward_heatmaps, update_reward_heatmaps
 
 # ------------------------------------------------------------------
@@ -62,13 +62,10 @@ def psrl(
 
     # Empirical tallies
     total_visits = np.zeros((num_states, num_actions), dtype=int)
-    transition_counts_obs = np.zeros_like(
-        transition_dirichlet_prior, dtype=int
-    )  # empirical transition count
-    reward_running_mean = np.zeros((num_states, num_actions))
-    reward_running_var = np.zeros((num_states, num_actions))
+    transition_counts_obs = np.zeros_like(transition_dirichlet_prior, dtype=int)
+    reward_mean_obs = np.zeros((num_states, num_actions))
+    reward_var_obs = np.zeros((num_states, num_actions))
 
-    global_step = 0
     rewards = []
     reward_stds = []
 
@@ -82,33 +79,34 @@ def psrl(
 
         # ---------- Posterior sample ----------
         alpha = transition_dirichlet_prior + transition_counts_obs
-        p_sample = sample_dirichlet_mat(alpha, rng=rng)
+        transition_prob_sample = sample_dirichlet_mat(alpha, rng=rng)
         reward_mean_sample, _ = sample_normal_gamma_mat(
             reward_mean_prior,
             reward_mean_strength,
             reward_precision_prior,
             reward_precision_strength,
             total_visits,
-            reward_running_mean,
-            reward_running_var,
+            reward_mean_obs,
+            reward_var_obs,
             rng=rng,
         )
 
+        # get mean statistics
         reward_mean, reward_std = sample_normal_gamma_mat(
             reward_mean_prior,
             reward_mean_strength,
             reward_precision_prior,
             reward_precision_strength,
             total_visits,
-            reward_running_mean,
-            reward_running_var,
+            reward_mean_obs,
+            reward_var_obs,
             draw_sample=False,
             rng=rng,
         )
 
         # ---------- Plan ----------
-        state_values, policy, q_vals = dp_value_iteration(
-            p_sample, reward_mean_sample, steps_per_episode
+        _, _, q_vals = dp_value_iteration(
+            transition_prob_sample, reward_mean_sample, steps_per_episode
         )
         if plotting:
             update_reward_heatmaps(
@@ -125,37 +123,20 @@ def psrl(
             episode_rewards += reward
             new_state = flatten_grid_state(env, obs)
 
-            # Online reward mean/variance (Welford)
-            # total_visits[state, action] += 1 * experience_multiplier
-            # n = total_visits[state, action]
-
-            # delta = reward - reward_running_mean[state, action]
-            # reward_running_mean[state, action] += delta / n
-            # reward_running_var[state, action]  = ((n - 1) * reward_running_var[state, action] + delta * (reward - reward_running_mean[state, action])) / n
-
-            update_running_mean_var(
-                mean=reward_running_mean,
-                var=reward_running_var,
-                count=total_visits,
+            update_obs_reward_stats(
+                mean=reward_mean_obs,
+                var=reward_var_obs,
+                total_visits=total_visits,
                 state=state,
                 action=action,
                 reward=reward,
                 multiplier=experience_multiplier,
             )
 
-            if terminated:
-                transition_counts_obs[new_state, new_state, :] += (
-                    1 * experience_multiplier
-                )  # all actions lead to termination
-
-            # Transition counts (skip the forced reset at the end)
+            # transition counts (except last step)
             if step_in_episode != steps_per_episode - 1:
-                transition_counts_obs[new_state, state, action] += (
-                    1 * experience_multiplier
-                )
+                transition_counts_obs[new_state, state, action] += experience_multiplier
                 state = new_state
-
-            global_step += 1
 
             if terminated or truncated:
                 break

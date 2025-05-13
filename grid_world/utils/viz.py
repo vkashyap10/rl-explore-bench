@@ -2,44 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def init_value_heatmaps(width, height):
-    fig, axes = plt.subplots(1, 4, figsize=(16, 4))
-    plt.ion()
-    imgs = []
-    for d, ax in enumerate(axes):
-        img = ax.imshow(np.zeros((height, width)), cmap="viridis", origin="upper")
-        ax.set_title(f"Orientation {d}")
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        # ax.invert_yaxis()
-        imgs.append(img)
-
-    # one colour‑bar for the last image (all share the same cmap & limits)
-    cbar = fig.colorbar(imgs[-1], ax=axes.ravel().tolist(), fraction=0.02, pad=0.02)
-    cbar.set_label("State value")
-    return fig, axes, imgs
-
-
-def update_value_heatmaps(
-    imgs, value, width, height, episode, fig, title_prefix="Value Function"
-):
-    v = value.reshape(height, width, 4)
-    vmin, vmax = v.min(), v.max()  # keep scale consistent
-
-    for d, img in enumerate(imgs):
-        img.set_data(v[:, :, d])
-        img.set_clim(vmin, vmax)
-
-    fig.suptitle(f"{title_prefix} – Episode {episode}", fontsize=14)
-    fig.canvas.draw()
-    fig.canvas.flush_events()
-
-
-# ────────────────────────────────────────────────────────────────
-#   FIGURE 2 – rewards (mean & variance)
-# ────────────────────────────────────────────────────────────────
-
-
 def init_reward_heatmaps(width: int, height: int):
     """Create the reward / variance window with two independent colour‑bars."""
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
@@ -80,11 +42,6 @@ def update_reward_heatmaps(imgs, r_mean, r_var, width, height, episode, fig, cba
     fig.suptitle(f"Rewards – Episode {episode}", fontsize=14)
     fig.canvas.draw()
     fig.canvas.flush_events()
-
-
-# ────────────────────────────────────────────────────────────────
-#   FIGURE 3 – transition probabilities from one chosen state
-# ────────────────────────────────────────────────────────────────
 
 
 def init_transition_heatmaps(width, height):

@@ -42,8 +42,8 @@ def sample_normal_gamma_mat(
     reward_precision_prior: np.ndarray,
     reward_precision_strength: np.ndarray,
     total_visits: np.ndarray,
-    reward_running_mean: np.ndarray,
-    reward_running_var: np.ndarray,
+    reward_mean_obs: np.ndarray,
+    reward_var_obs: np.ndarray,
     rng: np.random.Generator,
     draw_sample: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -59,6 +59,11 @@ def sample_normal_gamma_mat(
     -------
     mu  : Sampled or expected means (shape S×A)
     std_n : Sampled or expected std_n (shape S×A)
+
+    References
+    -------
+    http://en.wikipedia.org/wiki/Normal-gamma_distribution
+    http://www.seas.harvard.edu/courses/cs281/papers/murphy-2007.pdf
     """
 
     alpha0 = reward_precision_strength / 2.0
@@ -66,14 +71,14 @@ def sample_normal_gamma_mat(
 
     lambda_n = reward_mean_strength + total_visits
     mu_n = (
-        reward_mean_strength * reward_mean_prior + total_visits * reward_running_mean
+        reward_mean_strength * reward_mean_prior + total_visits * reward_mean_obs
     ) / lambda_n
     alpha_n = alpha0 + total_visits / 2.0
     beta_n = beta0 + 0.5 * (
-        total_visits * reward_running_var
+        total_visits * reward_var_obs
         + reward_mean_strength
         * total_visits
-        * (reward_running_mean - reward_mean_prior) ** 2
+        * (reward_mean_obs - reward_mean_prior) ** 2
         / lambda_n
     )
 
@@ -99,18 +104,17 @@ def sample_action_from_scores(scores: np.ndarray, rng: np.random.Generator) -> i
     return rng.choice(len(scores), p=probs)
 
 
-def update_running_mean_var(
+def update_obs_reward_stats(
     mean: np.ndarray,
     var: np.ndarray,
-    count: np.ndarray,
+    total_visits: np.ndarray,
     state: int,
     action: int,
     reward: float,
     multiplier: int = 1,
 ):
     """Online update of reward mean and variance using Welford's algorithm."""
-    count[state, action] += multiplier
-    n = count[state, action]
+    total_visits[state, action] += multiplier
     delta = reward - mean[state, action]
-    mean[state, action] += delta / n
+    mean[state, action] += delta / total_visits[state, action]
     var[state, action] += delta * (reward - mean[state, action])
