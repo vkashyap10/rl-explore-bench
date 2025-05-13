@@ -35,7 +35,7 @@ rl-explore-bench/
 
 ## ⚡  Installation
 
-> **Prerequisites** – Linux/macOS, Python ≥ 3.9.
+> **Prerequisites** – Linux/macOS, Python ≥ 3.11.
 
 ```bash
 # Clone the repository
