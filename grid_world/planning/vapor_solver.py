@@ -5,9 +5,6 @@ import cvxpy as cp
 import numpy as np
 
 
-# ------------------------------------------------------------------
-#  Flow‑constraint helper
-# ------------------------------------------------------------------
 def get_occupancy_constraints(
     transition_probability,
     initial_state_distribution,
@@ -54,11 +51,6 @@ def get_occupancy_constraints(
     return G, h
 
 
-# ------------------------------------------------------------------
-#  Solve VAPOR convex program
-# ------------------------------------------------------------------
-
-
 def get_unknown_dynamics_reward_var(
     reward_std_flat, steps_per_episode, alpha, num_states, num_actions
 ):
@@ -85,7 +77,7 @@ def get_unknown_dynamics_reward_var(
 
 
 # ------------------------------------------------------------------
-#  Solve VAPOR convex program  (DCP‑compliant version)
+#  Solve VAPOR convex program
 # ------------------------------------------------------------------
 def solve_vapor(
     reward_mean,

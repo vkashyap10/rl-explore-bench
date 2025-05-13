@@ -56,11 +56,9 @@ def run_experiment(
         )
         reward_mean_prior = np.ones((num_states, num_actions))
         reward_mean_strength = np.ones((num_states, num_actions))
-        reward_precision_prior = np.ones((num_states, num_actions))
+        reward_precision_prior = 1 / 20 * np.ones((num_states, num_actions))
         reward_precision_strength = np.ones((num_states, num_actions))
         initial_state_distribution = np.ones(num_states) / num_states  # uniform
-        # initial_state_distribution = np.zeros(num_states)
-        # initial_state_distribution[0] = 1.0
 
         print(f"Running PSRL, iteration {i + 1}")
         rewards_psrl, reward_stds_psrl = psrl(
