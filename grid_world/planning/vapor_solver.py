@@ -95,6 +95,7 @@ def solve_vapor(
     steps_per_episode,
     num_states,
     num_actions,
+    unknown_transition_dynamics=True,
     eps: float = 1e-6,
 ):
     """
@@ -126,10 +127,15 @@ def solve_vapor(
 
     # shape (L*S*A,)
     reward_mean_flat = np.tile(reward_mean, (steps_per_episode, 1)).flatten(order="C")
-    reward_std_flat = get_unknown_dynamics_reward_var(
-        reward_std, steps_per_episode, alpha, num_states, num_actions
-    )
-    reward_std_flat = cp.Constant(reward_std_flat.flatten(order="C"))
+
+    if unknown_transition_dynamics:
+        reward_std_flat = get_unknown_dynamics_reward_var(
+            reward_std, steps_per_episode, alpha, num_states, num_actions
+        )
+        reward_std_flat = cp.Constant(reward_std_flat.flatten(order="C"))
+    else:
+        reward_std_flat = np.tile(reward_std, (steps_per_episode, 1)).flatten(order="C")
+
     transition_probability = alpha / alpha.sum(axis=0, keepdims=True)  # posterior
 
     # epigraph: t_i² ≤ 2 λ_i z_i

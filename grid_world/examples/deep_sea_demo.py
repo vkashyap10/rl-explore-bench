@@ -6,8 +6,7 @@ from omegaconf import OmegaConf
 from grid_world.algorithms.psrl import psrl
 from grid_world.algorithms.vapor import vapor
 from grid_world.envs.grid_utils import extract_env_metadata, make_env
-from grid_world.utils.viz import (plot_exploration_uncertainty,
-                                  plot_reward_curves)
+from grid_world.utils.viz import plot_reward_curves, plot_reward_uncertainty
 
 
 def run_experiment(
@@ -57,7 +56,7 @@ def run_experiment(
         )
         reward_mean_prior = np.ones((num_states, num_actions))
         reward_mean_strength = np.ones((num_states, num_actions))
-        reward_precision_prior = (1 / 20) * np.ones((num_states, num_actions))
+        reward_precision_prior = np.ones((num_states, num_actions))
         reward_precision_strength = np.ones((num_states, num_actions))
         initial_state_distribution = np.ones(num_states) / num_states  # uniform
         # initial_state_distribution = np.zeros(num_states)
@@ -96,6 +95,7 @@ def run_experiment(
             experience_multiplier=experience_multiplier,
             rng=rng,
             plotting=plotting,
+            unknown_transition_dynamics=True,
         )
         rewards_vapor_all[i] = rewards_vapor
         stds_vapor_all[i] = reward_stds_vapor.mean(axis=(1, 2))
@@ -117,5 +117,9 @@ if __name__ == "__main__":
         plotting=cfg.plotting,
     )
 
-    plot_reward_curves(rewards_psrl_all, rewards_vapor_all)
-    plot_exploration_uncertainty(stds_psrl_all, stds_vapor_all)
+    plot_reward_curves(
+        rewards_psrl_all, rewards_vapor_all, steps_per_episode=cfg.steps_per_episode
+    )
+    plot_reward_uncertainty(
+        stds_psrl_all, stds_vapor_all, steps_per_episode=cfg.steps_per_episode
+    )

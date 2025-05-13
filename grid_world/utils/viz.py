@@ -100,7 +100,7 @@ def update_transition_heatmaps(
     fig.canvas.flush_events()
 
 
-def plot_reward_curves(psrl: np.ndarray, vapor: np.ndarray):
+def plot_reward_curves(psrl: np.ndarray, vapor: np.ndarray, steps_per_episode: int):
     mean_psrl = psrl.mean(axis=0)
     std_psrl = psrl.std(axis=0)
     mean_vapor = vapor.mean(axis=0)
@@ -125,14 +125,16 @@ def plot_reward_curves(psrl: np.ndarray, vapor: np.ndarray):
 
     plt.xlabel("Episode")
     plt.ylabel("Total Reward")
-    plt.title("Mean ± Std Reward per Episode")
+    plt.title(f"Mean Reward per Episode (steps/ep = {steps_per_episode})")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
     plt.show()
 
 
-def plot_exploration_uncertainty(std_psrl_all: np.ndarray, std_vapor_all: np.ndarray):
+def plot_reward_uncertainty(
+    std_psrl_all: np.ndarray, std_vapor_all: np.ndarray, steps_per_episode: int
+):
     episodes = np.arange(std_psrl_all.shape[1])
     mean_std_psrl = std_psrl_all.mean(0)
     std_std_psrl = std_psrl_all.std(0)
@@ -160,7 +162,7 @@ def plot_exploration_uncertainty(std_psrl_all: np.ndarray, std_vapor_all: np.nda
 
     plt.xlabel("Episode")
     plt.ylabel("Avg Reward Std (per state-action)")
-    plt.title("Exploration Uncertainty Over Time")
+    plt.title(f"Reward Uncertainty Over Time (steps/ep = {steps_per_episode})")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()

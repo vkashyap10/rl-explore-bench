@@ -5,8 +5,7 @@ from tqdm import trange
 
 from grid_world.envs.grid_utils import extract_env_metadata, flatten_grid_state
 from grid_world.planning.value_iteration import dp_value_iteration
-from grid_world.sampling.distributions import (sample_action_from_scores,
-                                               sample_dirichlet_mat,
+from grid_world.sampling.distributions import (sample_dirichlet_mat,
                                                sample_normal_gamma_mat,
                                                update_obs_reward_stats)
 from grid_world.utils.viz import init_reward_heatmaps, update_reward_heatmaps
@@ -105,7 +104,7 @@ def psrl(
         )
 
         # ---------- Plan ----------
-        _, _, q_vals = dp_value_iteration(
+        value, policy, q_vals = dp_value_iteration(
             transition_prob_sample, reward_mean_sample, steps_per_episode
         )
         if plotting:
@@ -116,7 +115,8 @@ def psrl(
         # ---------- Act ----------
         episode_rewards = 0
         for step_in_episode in range(steps_per_episode):
-            action = sample_action_from_scores(scores=q_vals[state], rng=rng)
+            # action = sample_action_from_scores(scores=q_vals[state], rng=rng)
+            action = policy[state]
 
             obs, vector_reward, terminated, truncated, info = env.step(action)
             reward = sum(vector_reward)

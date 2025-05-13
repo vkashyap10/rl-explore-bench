@@ -27,6 +27,7 @@ def vapor(
     transition_dirichlet_prior: np.ndarray,
     initial_state_distribution,
     rng: np.random.Generator,
+    unknown_transition_dynamics=True,
     seed: int | None = None,
     experience_multiplier: int = 1,
     plotting: bool = False,
@@ -71,15 +72,29 @@ def vapor(
         )
 
         # ---------- Plan ----------
-        Lambda_opt = solve_vapor(
-            reward_mean,
-            reward_std,
-            alpha,
-            initial_state_distribution,
-            steps_per_episode,
-            num_states,
-            num_actions,
-        )
+        try:
+            Lambda_opt = solve_vapor(
+                reward_mean=reward_mean,
+                reward_std=reward_std,
+                alpha=alpha,
+                initial_state_distribution=initial_state_distribution,
+                steps_per_episode=steps_per_episode,
+                num_states=num_states,
+                num_actions=num_actions,
+                unknown_transition_dynamics=unknown_transition_dynamics,
+            )
+        except:
+            print("Unable to solve. Assume known dynamics and solve ..")
+            Lambda_opt = solve_vapor(
+                reward_mean=reward_mean,
+                reward_std=reward_std,
+                alpha=alpha,
+                initial_state_distribution=initial_state_distribution,
+                steps_per_episode=steps_per_episode,
+                num_states=num_states,
+                num_actions=num_actions,
+                unknown_transition_dynamics=False,
+            )
         if plotting:
             update_reward_heatmaps(
                 imgsR, reward_mean, reward_std, width, height, ep + 1, figR, cbarsR
