@@ -1,6 +1,6 @@
 # RL-Explore-Bench
 
-Unofficial PyTorch implementation of **VAPOR (Variational Approximation of Posterior Optimality)** for **Bayesian Reinforcement Learning** exploration. Based on the paper *"Probabilistic Inference in Reinforcement Learning Done Right" (NeurIPS 2023)*. Includes baseline comparison with **Posterior Sampling RL (PSRL)**.
+Unofficial implementation of **VAPOR (Variational Approximation of Posterior Optimality)** for **Bayesian Reinforcement Learning** exploration. Based on the paper *"Probabilistic Inference in Reinforcement Learning Done Right" (NeurIPS 2023)*. Includes baseline comparison with **Posterior Sampling RL (PSRL)**.
 
 
 | VAPOR in action | Average episodic return | Posterior reward uncertainty |
